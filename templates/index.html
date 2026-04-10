@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tablas de Frecuencia</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  /* Fondo principal guindo oscuro */
+  --bg:        #4a0f0f;
+
+  /* superficies */
+  --surface:   #000000;
+  --surface2:  #000000;
+
+  /* bordes */
+  --border:    #8c3a3a;
+
+  /* acento principal */
+  --accent:    #d94b4b;
+
+  /* acento secundario (dorado suave) */
+  --accent2:   #e6c27a;
+
+  /* verde suave para porcentajes */
+  --green:     #7bcf9c;
+
+  /* rojo de alerta */
+  --red:       #ff6b6b;
+
+  /* texto principal blanco */
+  --text:      #ffffff;
+
+  /* texto secundario */
+  --muted:     #d8cfcf;
+
+  --radius:    12px;
+
+  --font-head: 'Syne', sans-serif;
+  --font-mono: 'Inter', Arial, sans-serif;
+}
+/* Quitar estilo exagerado a números */
+
+.paso-valor,
+.sp-value,
+.bar-label,
+td,
+.numero,
+.resultado {
+  font-family: Arial, sans-serif !important;
+  font-size: 46px !important;
+  font-weight: bolder !important;
+  letter-spacing: normal !important;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+/* NUMEROS IMPORTANTES */
+
+.sp-value{
+  font-family:'Orbitron', monospace;
+}
+
+.td-fi,
+.td-rel,
+.td-pct,
+.td-acu,
+.bar-label{
+  font-family:'Orbitron', monospace;
+}
+
+.paso-valor{
+  font-family:'Orbitron', monospace;
+}
+/* ── FONDO ANIMADO ─────────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 15% 20%, rgba(0,212,255,.06) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 35% at 85% 75%, rgba(0,229,160,.04) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.wrap {
+  position: relative;
+  z-index: 1;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 24px 60px;
+}
+
+/* ── HEADER ────────────────────────────────────────────── */
+header {
+  padding: 40px 0 32px;
+  margin-bottom: 40px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+
+  /* NUEVO COLOR SOLO PARA EL HEADER */
+  background: linear-gradient(90deg, #000000, #000000);
+  border-bottom: 1px solid var(--border);
+  border-radius: 12px;
+  padding-left: 20px;
+}
+.logo-icon {
+  width: 210px;
+  height: 210px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.logo-icon img{
+  width: 85%;
+  height: 85%;
+  object-fit: contain;
+}
+header h1 {
+  font-family: var(--font-head);
+  font-size: clamp(2.3rem, 3vw, 1.9rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+header p { font-size: .78rem; color: var(--muted); margin-top: 4px; }
+
+/* ── CARD ──────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  margin-bottom: 24px;
+}
+.card-title {
+  font-family: var(--font-head);
+  font-size: .85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--accent);
+  margin-bottom: 20px;
+  display: flex; align-items: center; gap: 10px;
+}
+.card-title::after {
+  content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, var(--border), transparent);
+}
+
+/* ── FORM GRID ─────────────────────────────────────────── */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media(max-width:640px){ .form-grid { grid-template-columns: 1fr; } }
+
+.field label {
+  display: block; font-size: .72rem;
+  color: var(--muted); margin-bottom: 6px;
+  text-transform: uppercase; letter-spacing: .08em;
+}
+.field input, .field select {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: .85rem;
+  padding: 10px 14px;
+  outline: none;
+  transition: border-color .2s;
+}
+.field input:focus, .field select:focus { border-color: var(--accent); }
+.field select option { background: var(--surface2); }
+
+/* Drop zone */
+.dropzone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  position: relative;
+}
+.dropzone:hover, .dropzone.over { border-color: var(--accent); background: rgba(0,212,255,.04); }
+.dropzone input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+.dropzone .dz-icon { font-size: 2rem; margin-bottom: 8px; }
+.dropzone .dz-text { font-size: .82rem; color: var(--muted); }
+.dropzone .dz-name { font-size: .85rem; color: var(--accent); margin-top: 6px; font-weight: 500; }
+
+/* Mode tabs */
+.tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+.tab {
+  flex: 1; padding: 10px; border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--muted);
+  font-family: var(--font-mono); font-size: .8rem;
+  cursor: pointer; text-align: center;
+  transition: all .2s;
+}
+.tab.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,.08); }
+
+#k-manual-wrap { display: none; }
+
+/* Button */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 28px; border-radius: 8px;
+  border: none; cursor: pointer;
+  font-family: var(--font-head); font-weight: 700;
+  font-size: .85rem; letter-spacing: .05em;
+  transition: all .2s;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), #0099cc);
+  color: #000;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,212,255,.3); }
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.btn-secondary:hover { border-color: var(--accent2); color: var(--accent2); }
+.btn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; }
+
+.actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 20px; }
+
+/* Error */
+.error-box {
+  background: rgba(255,77,109,.1);
+  border: 1px solid rgba(255,77,109,.3);
+  border-radius: 8px; padding: 14px 18px;
+  color: var(--red); font-size: .82rem;
+  display: none;
+}
+
+/* ── STATS PILLS ───────────────────────────────────────── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px; margin-bottom: 28px;
+}
+.stat-pill {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  opacity: 0;
+  animation: fadeUp .4s forwards;
+}
+.stat-pill .sp-label { font-size: .65rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+.stat-pill .sp-value { font-family: var(--font-head); font-size: 1.4rem; font-weight: 800; color: var(--accent); margin-top: 2px; }
+.stat-pill .sp-sub   { font-size: .68rem; color: var(--muted); margin-top: 2px; }
+
+/* ── PASOS ULTRA VISUALES ───────────────────────── */
+
+.pasos-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(340px,1fr));
+  gap:20px;
+}
+
+.paso-card{
+  background:linear-gradient(180deg,#0e1521,#0a1220);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:22px;
+  position:relative;
+  transition:.25s;
+  opacity:0;
+  animation:fadeUp .45s forwards;
+}
+
+.paso-card:hover{
+  border-color:var(--accent);
+  transform:translateY(-3px);
+  box-shadow:0 12px 28px rgba(0,212,255,.15);
+}
+
+.paso-num{
+  position:absolute;
+  top:-12px;
+  left:-12px;
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--green));
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:800;
+  color:#000;
+  font-family:var(--font-head);
+}
+
+.paso-titulo{
+  font-size:.85rem;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--muted);
+  margin-bottom:14px;
+}
+
+/* FORMULA PRINCIPAL */
+
+.paso-formula{
+  background:#08101d;
+  border:1px solid #1a2b45;
+  border-left:4px solid var(--accent);
+  padding:12px 16px;
+  border-radius:6px;
+  font-family:var(--font-mono);
+  font-size:1rem;
+  color:var(--accent);
+  margin-bottom:10px;
+}
+
+/* RESULTADO */
+
+.paso-valor{
+  font-family:var(--font-head);
+  font-size:1.6rem;
+  font-weight:800;
+  color:var(--accent2);
+  margin-top:4px;
+}
+
+/* IGUALDAD */
+
+.paso-eq{
+  font-size:1.2rem;
+  color:var(--green);
+  font-weight:700;
+  margin-right:6px;
+}
+/* ── TABLA ─────────────────────────────────────────────── */
+.table-scroll { overflow-x: auto; border-radius: var(--radius); }
+table {
+  width: 100%; border-collapse: collapse;
+  font-size: .82rem;
+}
+thead th {
+  background: linear-gradient(180deg, #0d1f38, #0a1828);
+  color: var(--accent);
+  font-family: var(--font-head); font-size: 1.7rem;
+  font-weight: 700; text-transform: none; letter-spacing: .1em;
+  padding: 12px 14px; white-space: nowrap;
+  border-bottom: 2px solid var(--accent);
+}
+tbody tr { transition: background .15s; }
+tbody tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+tbody tr:hover td { background: rgba(0,212,255,.06); }
+tbody td {
+  padding: 11px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  white-space: nowrap;
+}
+.td-intervalo { color: var(--text); font-weight: 500; }
+.td-fi { color: var(--accent); font-weight: 700; text-align: right; }
+.td-rel { color: var(--muted); text-align: right; }
+.td-pct { color: var(--green); text-align: right; }
+.td-acu { color: var(--accent2); text-align: right; }
+
+/* Barra en tabla */
+.bar-cell { min-width: 140px; }
+.bar-wrap { display: flex; align-items: center; gap: 8px; }
+.bar-track {
+  flex: 1; height: 8px; border-radius: 4px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%; border-radius: 4px;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+  width: 0; transition: width 1s cubic-bezier(.22,1,.36,1);
+}
+.bar-label { font-size: .72rem; color: var(--muted); min-width: 28px; text-align: right; }
+
+/* Fila TOTAL */
+tr.total-row td {
+  background: rgba(240,192,64,.06) !important;
+  border-top: 2px solid var(--accent2);
+  color: var(--accent2); font-weight: 700;
+}
+
+/* ── GRÁFICO ───────────────────────────────────────────── */
+.chart-wrap { position: relative; height: 300px; }
+
+/* ── LOADER ────────────────────────────────────────────── */
+.loader {
+  display: none; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px; padding: 40px;
+}
+.spinner {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin .7s linear infinite;
+}
+.loader p { color: var(--muted); font-size: .8rem; }
+
+/* ── SECCIÓN RESULTADO ─────────────────────────────────── */
+#resultado { display: none; }
+
+/* ── ANIMATIONS ────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity:0; transform: translateY(12px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.delay-1 { animation-delay:.05s }
+.delay-2 { animation-delay:.10s }
+.delay-3 { animation-delay:.15s }
+.delay-4 { animation-delay:.20s }
+.delay-5 { animation-delay:.25s }
+.delay-6 { animation-delay:.30s }
+
+/* badge modo */
+.modo-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 20px; font-size: .72rem;
+  font-weight: 600; text-transform: uppercase; letter-spacing: .08em;
+}
+.modo-auto     { background: rgba(0,212,255,.12); color: var(--accent); border: 1px solid rgba(0,212,255,.3); }
+.modo-arbitrario { background: rgba(240,192,64,.12); color: var(--accent2); border: 1px solid rgba(240,192,64,.3); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- HEADER -->
+<header>
+  <div class="logo-icon">
+    <img src="{{ url_for('static', filename='univalle.png') }}" alt="Logo Univalle">
+  </div>
+  <div>
+    <h1>Tablas de Frecuencia</h1>
+    <p>Generador automático · Sturges / Distribución arbitraria</p>
+  </div>
+</header>
+
+<!-- FORM CARD -->
+<div class="card">
+  <div class="card-title">⚙ Configuración</div>
+
+  <!-- Drop zone -->
+  <div class="dropzone" id="dropzone">
+    <input type="file" id="csvFile" accept=".csv"/>
+    <div class="dz-icon">📂</div>
+    <div class="dz-text">Arrastrá tu archivo CSV o hacé clic para buscarlo</div>
+    <div class="dz-name" id="dz-name"></div>
+  </div>
+
+  <div style="height:20px"></div>
+
+  <!-- Modo -->
+<div class="tabs">
+  <div class="tab active" id="tab-auto" onclick="setModo('auto')">
+    ⚡ Sturges Automático
+  </div>
+  <div class="tab" id="tab-arb" onclick="setModo('arbitrario')">
+    ✏️ Distribución Arbitraria
+  </div>
+  <div class="tab" id="tab-rango" onclick="setModo('rango')">
+    📏 Máximo − Mínimo
+  </div>
+</div>
+
+  <div class="form-grid">
+    <div class="field">
+      <label>Columna a analizar</label>
+      <select id="columna"><option value="">— Cargá un CSV primero —</option></select>
+    </div>
+    <div class="field" id="k-manual-wrap">
+      <label>Número de intervalos (k)</label>
+      <input type="number" id="kManual" min="2" max="50" value="7" placeholder="Ej: 7"/>
+    </div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="btnCalc" onclick="calcular()">
+      ▶ Calcular tabla
+    </button>
+    <button class="btn btn-secondary" id="btnExport" onclick="exportar()" style="display:none">
+      ⬇ Exportar Excel
+    </button>
+  </div>
+</div>
+
+<!-- LOADER -->
+<div class="loader" id="loader">
+  <div class="spinner"></div>
+  <p>Procesando datos…</p>
+</div>
+
+<!-- RESULTADO -->
+<div id="resultado">
+
+  <!-- Stats pills -->
+  <div class="card">
+    <div class="card-title" id="res-title">📐 Resumen</div>
+    <div class="stats-row" id="statsRow"></div>
+  </div>
+
+  <!-- Pasos -->
+  <div class="card">
+    <div class="card-title">🔢 Proceso paso a paso</div>
+    <div class="pasos-grid" id="pasosGrid"></div>
+  </div>
+
+  <!-- Tabla + gráfico en columnas -->
+  <div style="display:grid; grid-template-columns:1fr; gap:24px;">
+
+    <div class="card">
+      <div class="card-title">📋 Tabla de distribución</div>
+      <div class="table-scroll">
+        <table id="tablaFrec">
+          <thead>
+            <tr>
+              <th>Intervalo [li)</th>
+              <th>fi</th>
+              <th class="bar-cell">Frecuencia</th>
+              <th>hi</th>
+              <th>pi (%)</th>
+              <th>Fi</th>
+              <th>Hi</th>
+              <th>Pi (%)</th>
+            </tr>
+          </thead>
+          <tbody id="tablaBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📊 Histograma de frecuencias</div>
+      <div class="chart-wrap">
+        <canvas id="histChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<script>
+let modo = 'auto';
+let lastData = null;
+let chartInstance = null;
+
+// ── MODO ───────────────────────────────────────────────────────
+function setModo(m) {
+  modo = m;
+  document.getElementById('tab-auto').classList.toggle('active', m === 'auto');
+  document.getElementById('tab-arb').classList.toggle('active', m === 'arbitrario');
+  document.getElementById('tab-rango').classList.toggle('active', m === 'rango');
+  document.getElementById('k-manual-wrap').style.display = m === 'arbitrario' ? 'block' : 'none';
+}
+
+// ── DROP ZONE ──────────────────────────────────────────────────
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+document.getElementById('csvFile').addEventListener('change', e => {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+function handleFile(file) {
+  document.getElementById('dz-name').textContent = '✓ ' + file.name;
+  // Leer columnas
+  const fd = new FormData();
+  fd.append('csv', file);
+  fetch('/columnas', { method:'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+      const sel = document.getElementById('columna');
+      sel.innerHTML = data.columnas.map(c => `<option value="${c}">${c}</option>`).join('');
+    });
+}
+
+// ── CALCULAR ───────────────────────────────────────────────────
+async function calcular() {
+  const file = document.getElementById('csvFile').files[0];
+  const col  = document.getElementById('columna').value;
+  const errBox = document.getElementById('errorBox');
+
+  errBox.style.display = 'none';
+
+  if (!file) { showError('Cargá un archivo CSV primero.'); return; }
+  if (!col)  { showError('Seleccioná una columna.'); return; }
+
+  const fd = new FormData();
+  fd.append('csv', file);
+  fd.append('columna', col);
+  fd.append('modo', modo);
+  if (modo === 'arbitrario') {
+    const k = parseInt(document.getElementById('kManual').value);
+    if (!k || k < 2) { showError('k debe ser un entero ≥ 2.'); return; }
+    fd.append('k_manual', k);
+  }
+
+  document.getElementById('loader').style.display = 'flex';
+  document.getElementById('resultado').style.display = 'none';
+  document.getElementById('btnExport').style.display = 'none';
+
+  try {
+    const r = await fetch('/calcular', { method:'POST', body: fd });
+    const data = await r.json();
+    if (data.error) { showError(data.error); return; }
+    lastData = data;
+    renderResultado(data);
+  } catch(e) {
+    showError('Error de conexión: ' + e.message);
+  } finally {
+    document.getElementById('loader').style.display = 'none';
+  }
+}
+
+function showError(msg) {
+  document.getElementById('loader').style.display = 'none';
+  const b = document.getElementById('errorBox');
+  b.textContent = '✗ ' + msg;
+  b.style.display = 'block';
+}
+
+// ── RENDER ─────────────────────────────────────────────────────
+function renderResultado(d) {
+  // Título con badge de modo
+const badge = d.modo === 'auto'
+  ? `<span class="modo-badge modo-auto">⚡ Sturges Automático</span>`
+  : d.modo === 'arbitrario'
+  ? `<span class="modo-badge modo-arbitrario">✏️ Distribución Arbitraria · k = ${d.k}</span>`
+  : `<span class="modo-badge" style="background:rgba(123,207,156,.12);color:#7bcf9c;border:1px solid rgba(123,207,156,.3)">📏 Máximo − Mínimo · k = ${d.k}</span>`;
+
+  // Pills
+  const pills = [
+    { label:'Datos (n)',     value: d.n,                           sub: 'registros' },
+    { label:'Mínimo',        value: d.d,                           sub: 'valor más bajo' },
+    { label:'Máximo',        value: d.D,                           sub: 'valor más alto' },
+    { label:'Long. alcance', value: d.la,                          sub: `c = ${d.c}` },
+    { label:'Intervalos (k)',value: d.k,                           sub: d.modo==='auto' ? `Sturges ≈ ${d.k_sturges_exacto}` : 'elegido manualmente' },
+    { label:'Tamaño (t)',    value: d.t,                           sub: 'amplitud de clase' },
+  ];
+  const sr = document.getElementById('statsRow');
+  sr.innerHTML = pills.map((p, i) => `
+    <div class="stat-pill delay-${i+1}">
+      <div class="sp-label">${p.label}</div>
+      <div class="sp-value">${p.value}</div>
+      <div class="sp-sub">${p.sub}</div>
+    </div>`).join('');
+
+  // Pasos
+// Pasos
+const pg = document.getElementById("pasosGrid");
+
+pg.innerHTML = d.pasos.map((p, i) => `
+
+<div class="paso-card delay-${Math.min(i+1,6)}">
+
+  <div class="paso-num">${p.num}</div>
+
+  <div class="paso-titulo">
+    ${p.titulo}
+  </div>
+
+  <div class="paso-formula">
+    ${p.formula}
+  </div>
+
+  ${p.desarrollo ? `
+  <div class="paso-formula">
+    ${p.desarrollo}
+  </div>` : ""}
+
+  <div class="paso-valor">
+    <span class="paso-eq">=</span>${p.valor}
+  </div>
+
+</div>
+
+`).join('');
+
+  // Tabla
+  const fiMax = Math.max(...d.fi);
+  const tbody = document.getElementById('tablaBody');
+  tbody.innerHTML = d.intervalos.map((int, i) => `
+    <tr>
+      <td class="td-intervalo">${int}</td>
+      <td class="td-fi">${d.fi[i]}</td>
+      <td class="bar-cell">
+        <div class="bar-wrap">
+          <div class="bar-track"><div class="bar-fill" data-pct="${d.fi[i]/fiMax*100}"></div></div>
+          <span class="bar-label">${d.fi[i]}</span>
+        </div>
+      </td>
+      <td class="td-rel">${d.hi[i].toFixed(2)}</td>
+      <td class="td-pct">${d.pi[i].toFixed(2)}%</td>
+      <td class="td-acu">${d.Fi[i]}</td>
+      <td class="td-acu">${d.Hi[i].toFixed(2)}</td>
+      <td class="td-pct">${d.Pi[i].toFixed(2)}%</td>
+    </tr>`).join('')
+    + `<tr class="total-row">
+      <td>TOTAL</td>
+      <td>${d.fi.reduce((a,b)=>a+b,0)}</td>
+      <td></td>
+      <td>${d.hi.reduce((a,b)=>a+b,0).toFixed(2)}</td>
+      <td>100,00%</td>
+      <td></td><td></td><td></td>
+    </tr>`;
+
+  // Animar barras
+  setTimeout(() => {
+    document.querySelectorAll('.bar-fill').forEach(el => {
+      el.style.width = el.dataset.pct + '%';
+    });
+  }, 80);
+
+  // Histograma
+  renderChart(d);
+
+  document.getElementById('resultado').style.display = 'block';
+  document.getElementById('btnExport').style.display = 'inline-flex';
+  document.getElementById('resultado').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderChart(d) {
+  if (chartInstance) chartInstance.destroy();
+  const ctx = document.getElementById('histChart').getContext('2d');
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+  gradient.addColorStop(0,   'rgba(0,212,255,.85)');
+  gradient.addColorStop(1,   'rgba(0,229,160,.25)');
+
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: d.intervalos,
+      datasets: [{
+        label: 'fi (frecuencia absoluta)',
+        data: d.fi,
+        backgroundColor: gradient,
+        borderColor: 'rgba(0,212,255,.9)',
+        borderWidth: 1.5,
+        borderRadius: 4,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 900, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0e1521',
+          borderColor: '#1e2d45',
+          borderWidth: 1,
+          titleColor: '#00d4ff',
+          bodyColor: '#e2eaf8',
+          callbacks: {
+            label: ctx => ` fi = ${ctx.raw}  |  pi = ${d.pi[ctx.dataIndex].toFixed(2)}%`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#5a7090', font: { family: 'DM Mono', size: 11 }, maxRotation: 30 },
+          grid:  { color: 'rgba(255,255,255,.04)' },
+          border:{ color: '#1e2d45' }
+        },
+        y: {
+          ticks: { color: '#5a7090', font: { family: 'DM Mono', size: 11 } },
+          grid:  { color: 'rgba(255,255,255,.04)' },
+          border:{ color: '#1e2d45' }
+        }
+      }
+    }
+  });
+}
+
+// ── EXPORTAR ───────────────────────────────────────────────────
+async function exportar() {
+  if (!lastData) return;
+  const r = await fetch('/exportar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(lastData)
+  });
+  const blob = await r.blob();
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'tabla_frecuencias.xlsx'; a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
